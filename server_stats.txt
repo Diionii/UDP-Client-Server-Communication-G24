@@ -1,0 +1,8 @@
+[2025-11-15 16:24:35] === SERVER STATS ===
+Active clients   : 0 / 100
+Total RX         : 0 bytes
+Total TX         : 0 bytes
+
+Active clients details:
+--------------------------------------------------
+
