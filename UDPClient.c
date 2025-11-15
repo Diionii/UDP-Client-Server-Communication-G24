@@ -146,6 +146,14 @@ void handle_download(SOCKET sock, struct sockaddr_in *server, const char *server
     printf("File-i u shkarkua (%d bytes) → %s\n", recv_len, local_path);
 }
 
+/* ===================== INFO ===================== */
+void handle_info(SOCKET sock, struct sockaddr_in *server, const char *filename)
+{
+    char cmd[512];
+    snprintf(cmd, sizeof(cmd), "/info %s", filename);
+    send_command(sock, server, cmd);
+}
+
 int main(int argc, char *argv[])
 {
     if (argc < 3) {
@@ -176,10 +184,6 @@ int main(int argc, char *argv[])
     server.sin_port = htons(port);
     server.sin_addr.s_addr = inet_addr(server_ip);
 
-    // Timeout më i madh për upload/download
-    int timeout = 30000;  // 15 sekonda
-    setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(timeout));
-
     printf("Lidhur me serverin %s:%d\n", server_ip, port);
 
     // Kërko emër dhe rol
@@ -193,10 +197,14 @@ int main(int argc, char *argv[])
 
     int is_admin = (strcmp(role, "admin") == 0);
 
+    // SET TIMEOUT: Admin 10s, User 30s → Admini ka përgjigje më të shpejtë
+    int timeout = is_admin ? 10000 : 30000;  // 10s për admin, 30s për user
+    setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(timeout));
+
     printf("\nPërdoruesi: %s (%s)\n", username, is_admin ? "ADMIN" : "USER");
     printf("Komandat e lejuara:\n");
     if (is_admin) {
-        printf("  /list, /read <file>, /upload <lokal>, /download <server> [lokal], /delete <file>, /search <dir> <keyword>\n");
+        printf("  /list, /read <file>, /upload <lokal>, /download <server> [lokal], /delete <file>, /search <dir> <keyword>, /info <file>\n");
     } else {
         printf("  /list, /read <file>\n");
     }
@@ -259,6 +267,22 @@ int main(int argc, char *argv[])
                 printf("Përdorimi: /download <emri_në_server> [emri_lokal]\n");
             } else {
                 handle_download(sock, &server, server_file, local_path[0] ? local_path : NULL);
+            }
+            continue;
+        }
+
+        /* ========== INFO ========== */
+        if (strncmp(cmd, "/info ", 6) == 0) {
+            if (!is_admin) {
+                printf("Nuk ke privilegje admin për /info.\n");
+                continue;
+            }
+            char filename[512];
+            sscanf(cmd + 6, "%511s", filename);
+            if (strlen(filename) == 0) {
+                printf("Përdorimi: /info <emri_në_server>\n");
+            } else {
+                handle_info(sock, &server, filename);
             }
             continue;
         }
