@@ -504,6 +504,57 @@ int main(int argc, char **argv)
                     snprintf(reply, sizeof(reply), "ERROR: Usage /search <dir> <keyword>");
                 continue;
             }
+            else if (strcmp(cmd, "/info") == 0)
+{
+    char filename[256];
+    if (sscanf(arg1, "%255s", filename) != 1 || !filename[0])
+    {
+        snprintf(reply, sizeof(reply), "ERROR: Usage /info <filename>");
+    }
+    else if (strstr(filename, "..") || strchr(filename, '/') || strchr(filename, '\\'))
+    {
+        snprintf(reply, sizeof(reply), "ERROR: Invalid filename");
+    }
+    else
+    {
+        char fullpath[MAX_PATH];
+        snprintf(fullpath, sizeof(fullpath), "%s/%s", UPLOAD_DIR, filename);
+
+        WIN32_FIND_DATAA fd;
+        HANDLE h = FindFirstFileA(fullpath, &fd);
+        if (h == INVALID_HANDLE_VALUE)
+        {
+            snprintf(reply, sizeof(reply), "ERROR: File not found");
+        }
+        else
+        {
+            FindClose(h);
+
+            FILETIME ftCreate = fd.ftCreationTime;
+            FILETIME ftModify = fd.ftLastWriteTime;
+            SYSTEMTIME stCreate, stModify;
+            FileTimeToSystemTime(&ftCreate, &stCreate);
+            FileTimeToSystemTime(&ftModify, &stModify);
+
+            char create_str[64], modify_str[64];
+            snprintf(create_str, sizeof(create_str), "%04d-%02d-%02d %02d:%02d:%02d",
+                     stCreate.wYear, stCreate.wMonth, stCreate.wDay,
+                     stCreate.wHour, stCreate.wMinute, stCreate.wSecond);
+            snprintf(modify_str, sizeof(modify_str), "%04d-%02d-%02d %02d:%02d:%02d",
+                     stModify.wYear, stModify.wMonth, stModify.wDay,
+                     stModify.wHour, stModify.wMinute, stModify.wSecond);
+
+            snprintf(reply, sizeof(reply),
+                     "INFO %s\n"
+                     "Size: %lu bytes\n"
+                     "Created: %s\n"
+                     "Modified: %s",
+                     filename, fd.nFileSizeLow, create_str, modify_str);
+        }
+    }
+    safe_send(s, reply, -1, &client_addr, c);
+    continue;
+}
             else if (strcmp(cmd, "/upload") == 0)
             {
                 char filename[256];
